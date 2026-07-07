@@ -1,4 +1,12 @@
-from .task import Task
+from .task import Comment, Task
 from .user import User
+from .workspace import Invitation, Workspace, WorkspaceMember
 
-__all__ = ["User", "Task"]
+__all__ = [
+    "Comment",
+    "Invitation",
+    "Task",
+    "User",
+    "Workspace",
+    "WorkspaceMember",
+]
