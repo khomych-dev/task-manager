@@ -4,12 +4,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     environment: str = "development"
     database_url: str
+    redis_url: str
 
-    # Indicating Pydantic to look for variables in the .env file
+    # Auth JWT
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 30
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
 
-# Create a global settings object that we will import into other files
 settings = Settings()
