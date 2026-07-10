@@ -2,12 +2,17 @@ import structlog
 from fastapi import FastAPI
 
 from app.core.logger import setup_logging
+from app.routers import auth, users
 
 # Let's initialize the logger before launching the application
 setup_logging()
 logger = structlog.get_logger()
 
 app = FastAPI(title="Task Manager API")
+
+# Connecting routers
+app.include_router(auth.router)
+app.include_router(users.router)
 
 
 @app.on_event("startup")
