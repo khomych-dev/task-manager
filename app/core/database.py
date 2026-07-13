@@ -1,6 +1,7 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
-from config import settings
+
+from app.core.config import settings
 
 # Creating an asynchronous engine. echo=True will output SQL queries to the console in development mode.
 engine = create_async_engine(
@@ -17,6 +18,6 @@ Base = declarative_base()
 
 
 # Dependency for FastAPI to get the session in the routes
-async def get_db():
+async def get_session():
     async with async_session_maker() as session:
         yield session

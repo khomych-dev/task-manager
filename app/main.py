@@ -1,6 +1,7 @@
-from fastapi import FastAPI
 import structlog
-from logger import setup_logging
+from fastapi import FastAPI
+
+from app.core.logger import setup_logging
 
 # Let's initialize the logger before launching the application
 setup_logging()
