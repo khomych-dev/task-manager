@@ -23,6 +23,6 @@ class WorkspaceResponse(WorkspaceBase):
     slug: str
     owner_id: UUID
     created_at: datetime.datetime
-    updated_at: datetime.datetime
+    updated_at: datetime.datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
