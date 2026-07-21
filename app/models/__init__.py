@@ -1,12 +1,6 @@
-from .task import Comment, Task
-from .user import User
-from .workspace import Invitation, Workspace, WorkspaceMember
+from app.core.database import Base
+from app.models.task import Task
+from app.models.user import User
+from app.models.workspace import Workspace
 
-__all__ = [
-    "Comment",
-    "Invitation",
-    "Task",
-    "User",
-    "Workspace",
-    "WorkspaceMember",
-]
+__all__ = ["Base", "User", "Workspace", "Task"]

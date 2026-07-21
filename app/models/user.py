@@ -30,19 +30,6 @@ class User(Base):
         nullable=False,
     )
 
-    # Relationships
     owned_workspaces = relationship(
         "Workspace", back_populates="owner", cascade="all, delete-orphan"
-    )
-    workspace_memberships = relationship(
-        "WorkspaceMember", back_populates="user", cascade="all, delete-orphan"
-    )
-    tasks_created = relationship(
-        "Task", foreign_keys="[Task.creator_id]", back_populates="creator"
-    )
-    tasks_assigned = relationship(
-        "Task", foreign_keys="[Task.assignee_id]", back_populates="assignee"
-    )
-    comments = relationship(
-        "Comment", back_populates="author", cascade="all, delete-orphan"
     )
