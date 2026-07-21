@@ -1,17 +1,13 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
-
-# 1. Import the settings and the database base class
 from app.core.config import settings
-from app.core.database import Base
-
-# 2. Import all models so Alembic knows about them
+from app.models import Base
 
 # this is the Alembic Config object
 config = context.config
@@ -20,10 +16,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 3. Overwrite the database URL from our .env
+# Overwrite the database URL from our .env
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-# 4. Specify metadata
+# Specify metadata
 target_metadata = Base.metadata
 
 
