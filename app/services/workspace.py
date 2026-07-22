@@ -1,13 +1,22 @@
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 from uuid import UUID
 
 import structlog
 from fastapi import HTTPException, status
+from fastapi_mail import MessageSchema, MessageType
 
+from app.core.config import settings
+from app.core.email import fast_mail
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.repositories.workspace import WorkspaceRepository
-from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
+from app.schemas.workspace import (
+    WorkspaceCreate,
+    WorkspaceInviteCreate,
+    WorkspaceUpdate,
+)
 
 logger = structlog.get_logger()
 
@@ -95,3 +104,79 @@ class WorkspaceService:
             )
 
         await self.workspace_repo.remove_member(workspace_id, user_id)
+
+    async def invite_member(
+        self, workspace_id: UUID, obj_in: WorkspaceInviteCreate
+    ) -> None:
+        """Generate token, save invitation, and send email."""
+        token = uuid.uuid4().hex
+        # Токен дійсний 7 днів
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+        await self.workspace_repo.create_invitation(
+            workspace_id=workspace_id,
+            email=obj_in.email,
+            role=obj_in.role,
+            token=token,
+            expires_at=expires_at,
+        )
+
+        invite_link = f"{settings.frontend_url}/invitations/accept?token={token}"
+
+        message = MessageSchema(
+            subject="Запрошення у Workspace",
+            recipients=[obj_in.email],
+            body=f"Ви отримали запрошення. Перейдіть за посиланням, щоб прийняти: {invite_link}",
+            subtype=MessageType.html,
+        )
+
+        try:
+            await fast_mail.send_message(message)
+            logger.info(
+                "invitation_email_sent",
+                email=obj_in.email,
+                workspace_id=str(workspace_id),
+            )
+        except Exception as e:
+            # Оскільки у тебе фейкові дані SMTP, ми просто логуємо помилку і не видаємо 500 статус
+            logger.error("email_send_failed", error=str(e), email=obj_in.email)
+
+    async def accept_invitation(self, token: str, current_user: User) -> None:
+        """Accept an invitation using the token."""
+        invitation = await self.workspace_repo.get_invitation_by_token(token)
+
+        if not invitation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found"
+            )
+
+        if invitation.accepted_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation already accepted",
+            )
+
+        if invitation.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation expired"
+            )
+
+        existing_member = await self.workspace_repo.get_member(
+            invitation.workspace_id, current_user.id
+        )
+        if existing_member:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is already a member",
+            )
+
+        await self.workspace_repo.add_member(
+            invitation.workspace_id, current_user.id, invitation.role
+        )
+        await self.workspace_repo.mark_invitation_accepted(invitation)
+
+        logger.info(
+            "invitation_accepted",
+            user_id=str(current_user.id),
+            workspace_id=str(invitation.workspace_id),
+        )

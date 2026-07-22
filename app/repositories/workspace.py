@@ -1,10 +1,11 @@
 from typing import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.workspace import Workspace, WorkspaceMember
+from app.models.workspace import Workspace, WorkspaceMember, Invitation
 from app.repositories.base import BaseRepository
 
 
@@ -81,3 +82,36 @@ class WorkspaceRepository(BaseRepository[Workspace]):
             await self.session.commit()
             await self.session.refresh(member)
         return member
+
+    async def create_invitation(
+        self,
+        workspace_id: UUID,
+        email: str,
+        role: str,
+        token: str,
+        expires_at: datetime,
+    ) -> Invitation:
+        """Create a new invitation for a workspace."""
+        invitation = Invitation(
+            workspace_id=workspace_id,
+            email=email,
+            role=role,
+            token=token,
+            expires_at=expires_at,
+        )
+        self.session.add(invitation)
+        await self.session.commit()
+        return invitation
+
+    async def get_invitation_by_token(self, token: str) -> Invitation | None:
+        """Retrieve an invitation by its unique token."""
+        stmt = select(Invitation).where(Invitation.token == token)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def mark_invitation_accepted(self, invitation: Invitation) -> None:
+        """Mark an invitation as accepted."""
+        from sqlalchemy import func
+
+        invitation.accepted_at = func.now()
+        await self.session.commit()

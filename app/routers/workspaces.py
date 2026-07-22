@@ -15,6 +15,7 @@ from app.schemas.workspace import (
     WorkspaceUpdate,
     MemberResponse,
     WorkspaceMemberUpdate,
+    WorkspaceInviteCreate,
 )
 from app.services.workspace import WorkspaceService
 
@@ -131,3 +132,24 @@ async def leave_workspace(
 ) -> None:
     """Leave a workspace."""
     await workspace_service.remove_member(workspace_id, current_user.id)
+
+
+@router.post("/{workspace_id}/invite", status_code=status.HTTP_204_NO_CONTENT)
+async def invite_workspace_member(
+    workspace_id: UUID,
+    obj_in: WorkspaceInviteCreate,
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _=Depends(require_role("admin")),
+) -> None:
+    """Send an email invitation to join the workspace."""
+    await workspace_service.invite_member(workspace_id, obj_in)
+
+
+@router.post("/invitations/{token}/accept", status_code=status.HTTP_204_NO_CONTENT)
+async def accept_workspace_invitation(
+    token: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+) -> None:
+    """Accept an invitation to join a workspace."""
+    await workspace_service.accept_invitation(token, current_user)
