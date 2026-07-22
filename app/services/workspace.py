@@ -5,7 +5,7 @@ import structlog
 from fastapi import HTTPException, status
 
 from app.models.user import User
-from app.models.workspace import Workspace
+from app.models.workspace import Workspace, WorkspaceMember
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
 
@@ -62,3 +62,36 @@ class WorkspaceService:
         workspace = await self.get(workspace_id, current_user)
         await self.workspace_repo.delete(workspace.id)
         logger.info("workspace_deleted", workspace_id=str(workspace.id))
+
+    async def get_members(self, workspace_id: UUID) -> Sequence[WorkspaceMember]:
+        """Get all members of a workspace."""
+        return await self.workspace_repo.get_members(workspace_id)
+
+    async def update_member_role(
+        self, workspace_id: UUID, user_id: UUID, role: str
+    ) -> WorkspaceMember:
+        """Update a member's role."""
+        member = await self.workspace_repo.update_member_role(
+            workspace_id, user_id, role
+        )
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Member not found"
+            )
+        return member
+
+    async def remove_member(self, workspace_id: UUID, user_id: UUID) -> None:
+        """Remove a member or leave a workspace."""
+        member = await self.workspace_repo.get_member(workspace_id, user_id)
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Member not found"
+            )
+
+        if member.role == "owner":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Owner cannot be removed or leave. Delete the workspace instead.",
+            )
+
+        await self.workspace_repo.remove_member(workspace_id, user_id)

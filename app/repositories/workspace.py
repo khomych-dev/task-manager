@@ -1,7 +1,7 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.workspace import Workspace, WorkspaceMember
@@ -41,4 +41,43 @@ class WorkspaceRepository(BaseRepository[Workspace]):
         member = WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=role)
         self.session.add(member)
         await self.session.commit()
+        return member
+
+    async def get_members(self, workspace_id: UUID) -> Sequence[WorkspaceMember]:
+        """Retrieve all members of a workspace."""
+        stmt = select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_member(
+        self, workspace_id: UUID, user_id: UUID
+    ) -> WorkspaceMember | None:
+        """Retrieve a specific member of a workspace."""
+        stmt = select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def remove_member(self, workspace_id: UUID, user_id: UUID) -> None:
+        """Remove a member from a workspace."""
+        stmt = delete(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()
+
+    async def update_member_role(
+        self, workspace_id: UUID, user_id: UUID, role: str
+    ) -> WorkspaceMember | None:
+        """Update the role of a workspace member."""
+        member = await self.get_member(workspace_id, user_id)
+        if member:
+            member.role = role
+            await self.session.commit()
+            await self.session.refresh(member)
         return member
