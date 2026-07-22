@@ -1,5 +1,3 @@
-import re
-import uuid
 from typing import Sequence
 from uuid import UUID
 
@@ -14,25 +12,13 @@ from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
 logger = structlog.get_logger()
 
 
-def generate_slug(name: str) -> str:
-    """Generate a URL-friendly slug with a unique suffix."""
-    slug_base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    if not slug_base:
-        slug_base = "workspace"
-    unique_suffix = uuid.uuid4().hex[:6]
-    return f"{slug_base}-{unique_suffix}"
-
-
 class WorkspaceService:
     def __init__(self, workspace_repo: WorkspaceRepository) -> None:
         self.workspace_repo = workspace_repo
 
     async def create(self, obj_in: WorkspaceCreate, current_user: User) -> Workspace:
         """Create a new workspace."""
-        slug = generate_slug(obj_in.name)
-
         create_data = obj_in.model_dump()
-        create_data["slug"] = slug
         create_data["owner_id"] = current_user.id
 
         workspace = await self.workspace_repo.create(create_data)
