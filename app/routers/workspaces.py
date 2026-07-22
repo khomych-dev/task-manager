@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.repositories.workspace import WorkspaceRepository
@@ -41,7 +41,7 @@ async def get_workspaces(
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
 ) -> Sequence[Workspace]:
-    """Get all workspaces owned by the current user."""
+    """Get all workspaces where the current user is a member."""
     return await workspace_service.get_user_workspaces(current_user.id)
 
 
@@ -50,6 +50,7 @@ async def get_workspace(
     workspace_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _=Depends(require_role("viewer")),
 ) -> Workspace:
     """Get a specific workspace by ID."""
     return await workspace_service.get(workspace_id, current_user)
@@ -61,6 +62,7 @@ async def update_workspace(
     obj_in: WorkspaceUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _=Depends(require_role("admin")),
 ) -> Workspace:
     """Update a workspace."""
     return await workspace_service.update(workspace_id, obj_in, current_user)
@@ -71,6 +73,7 @@ async def delete_workspace(
     workspace_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _=Depends(require_role("owner")),
 ) -> None:
     """Delete a workspace."""
     await workspace_service.delete(workspace_id, current_user)
