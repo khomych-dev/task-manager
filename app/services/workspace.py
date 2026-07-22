@@ -22,6 +22,9 @@ class WorkspaceService:
         create_data["owner_id"] = current_user.id
 
         workspace = await self.workspace_repo.create(create_data)
+
+        await self.workspace_repo.add_member(workspace.id, current_user.id, "owner")
+
         logger.info(
             "workspace_created",
             workspace_id=str(workspace.id),
@@ -30,16 +33,16 @@ class WorkspaceService:
         return workspace
 
     async def get_user_workspaces(self, user_id: UUID) -> Sequence[Workspace]:
-        """Get all workspaces owned by the user."""
-        return await self.workspace_repo.get_by_owner(user_id)
+        """Get all workspaces where the user is a member."""
+        return await self.workspace_repo.get_by_user_id(user_id)
 
     async def get(self, workspace_id: UUID, current_user: User) -> Workspace:
-        """Get a specific workspace, ensuring the user has access."""
+        """Get a specific workspace."""
         workspace = await self.workspace_repo.get(workspace_id)
-        if not workspace or workspace.owner_id != current_user.id:
+        if not workspace:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Workspace not found or access denied",
+                detail="Workspace not found",
             )
         return workspace
 
