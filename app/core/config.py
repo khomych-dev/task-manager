@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     emails_from: str
     frontend_url: str
 
+    # Google OAuth2
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

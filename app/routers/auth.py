@@ -1,7 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -11,6 +12,7 @@ from app.repositories.user import UserRepository
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.user import UserCreate, UserResponse
 from app.services.auth import AuthService
+from app.services.oauth import GoogleOAuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -61,3 +63,29 @@ async def logout(
 ) -> None:
     """Invalidate the refresh token."""
     await auth_service.logout(obj_in.refresh_token)
+
+
+def get_google_oauth_service(
+    session: AsyncSession = Depends(get_session),
+) -> GoogleOAuthService:
+    user_repo = UserRepository(session)
+    return GoogleOAuthService(user_repo)
+
+
+@router.get("/google")
+async def login_google(
+    request: Request,
+    oauth_service: GoogleOAuthService = Depends(get_google_oauth_service),
+) -> RedirectResponse:
+    """Redirect to Google OAuth login."""
+    url = await oauth_service.generate_auth_url(request)
+    return RedirectResponse(url=url)
+
+
+@router.get("/google/callback", response_model=TokenResponse)
+async def auth_google_callback(
+    request: Request,
+    oauth_service: GoogleOAuthService = Depends(get_google_oauth_service),
+) -> TokenResponse:
+    """Process Google OAuth callback."""
+    return await oauth_service.auth_callback(request)
