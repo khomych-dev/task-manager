@@ -12,11 +12,13 @@ from app.core.email import fast_mail
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.repositories.workspace import WorkspaceRepository
+from app.schemas.user import UserResponse
 from app.schemas.workspace import (
     WorkspaceCreate,
     WorkspaceInviteCreate,
     WorkspaceUpdate,
 )
+from app.websocket_manager import manager
 
 logger = structlog.get_logger()
 
@@ -110,7 +112,7 @@ class WorkspaceService:
     ) -> None:
         """Generate token, save invitation, and send email."""
         token = uuid.uuid4().hex
-        # Токен дійсний 7 днів
+        # Token is valid for 7 days
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
         await self.workspace_repo.create_invitation(
@@ -138,7 +140,7 @@ class WorkspaceService:
                 workspace_id=str(workspace_id),
             )
         except Exception as e:
-            # Оскільки у тебе фейкові дані SMTP, ми просто логуємо помилку і не видаємо 500 статус
+            # Since you have fake SMTP data, we just log the error and don't return 500 status
             logger.error("email_send_failed", error=str(e), email=obj_in.email)
 
     async def accept_invitation(self, token: str, current_user: User) -> None:
@@ -179,4 +181,15 @@ class WorkspaceService:
             "invitation_accepted",
             user_id=str(current_user.id),
             workspace_id=str(invitation.workspace_id),
+        )
+
+        # Broadcast event when a new member joins
+        await manager.broadcast_to_workspace(
+            invitation.workspace_id,
+            {
+                "event": "member.joined",
+                "user": UserResponse.model_validate(current_user).model_dump(
+                    mode="json"
+                ),
+            },
         )
