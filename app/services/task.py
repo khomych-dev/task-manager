@@ -10,7 +10,15 @@ from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.repositories.comment import CommentRepository
 from app.repositories.workspace import WorkspaceRepository, WorkspaceMemberRepository
-from app.schemas.task import TaskCreate, TaskUpdate, TaskStatusUpdate, CommentCreate
+from app.schemas.task import (
+    TaskCreate,
+    TaskUpdate,
+    TaskStatusUpdate,
+    CommentCreate,
+    TaskResponse,
+    CommentResponse,
+)
+from app.websocket_manager import manager
 
 logger = structlog.get_logger()
 
@@ -58,6 +66,16 @@ class TaskService:
             workspace_id=str(task.workspace_id),
             creator_id=str(current_user.id),
         )
+
+        # Broadcast the event when a task is created
+        await manager.broadcast_to_workspace(
+            workspace_id,
+            {
+                "event": "task.created",
+                "task": TaskResponse.model_validate(task).model_dump(mode="json"),
+            },
+        )
+
         return task
 
     async def get_multi(
@@ -133,6 +151,17 @@ class TaskService:
         if update_data:
             task = await self.task_repo.update(task, update_data)
             logger.info("task_updated", task_id=str(task.id))
+
+            # Broadcast the event when a task is updated
+            await manager.broadcast_to_workspace(
+                workspace_id,
+                {
+                    "event": "task.updated",
+                    "task": TaskResponse.model_validate(task).model_dump(mode="json"),
+                    "changed_fields": list(update_data.keys()),
+                },
+            )
+
         return task
 
     async def update_status(
@@ -147,10 +176,25 @@ class TaskService:
             workspace_id, current_user.id, ["owner", "admin", "member"]
         )
         task = await self.get(workspace_id, task_id, current_user)
+
+        old_status = task.status
         task = await self.task_repo.update(task, {"status": obj_in.status})
+
         logger.info(
             "task_status_updated", task_id=str(task.id), new_status=obj_in.status
         )
+
+        # Broadcast the event when a task status is changed
+        await manager.broadcast_to_workspace(
+            workspace_id,
+            {
+                "event": "task.status_changed",
+                "task_id": str(task.id),
+                "old": old_status,
+                "new": obj_in.status,
+            },
+        )
+
         return task
 
     async def delete(
@@ -163,6 +207,15 @@ class TaskService:
         )
         await self.task_repo.delete(task.id)
         logger.info("task_deleted", task_id=str(task.id))
+
+        # Broadcast the event when a task is deleted
+        await manager.broadcast_to_workspace(
+            workspace_id,
+            {
+                "event": "task.deleted",
+                "task_id": str(task_id),
+            },
+        )
 
     async def create_comment(
         self,
@@ -185,6 +238,19 @@ class TaskService:
 
         comment = await self.comment_repo.create(create_data)
         logger.info("comment_created", comment_id=str(comment.id), task_id=str(task_id))
+
+        # Broadcast the event when a comment is added
+        await manager.broadcast_to_workspace(
+            workspace_id,
+            {
+                "event": "comment.created",
+                "task_id": str(task_id),
+                "comment": CommentResponse.model_validate(comment).model_dump(
+                    mode="json"
+                ),
+            },
+        )
+
         return comment
 
     async def get_comments(
