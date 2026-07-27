@@ -9,6 +9,7 @@ from app.models.task import Task, Comment
 from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.repositories.comment import CommentRepository
+from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository, WorkspaceMemberRepository
 from app.schemas.task import (
     TaskCreate,
@@ -18,6 +19,7 @@ from app.schemas.task import (
     TaskResponse,
     CommentResponse,
 )
+from app.services.notification import NotificationService
 from app.websocket_manager import manager
 
 logger = structlog.get_logger()
@@ -30,11 +32,13 @@ class TaskService:
         workspace_repo: WorkspaceRepository,
         member_repo: WorkspaceMemberRepository,
         comment_repo: CommentRepository,
+        user_repo: UserRepository,
     ) -> None:
         self.task_repo = task_repo
         self.workspace_repo = workspace_repo
         self.member_repo = member_repo
         self.comment_repo = comment_repo
+        self.user_repo = user_repo
 
     async def _check_workspace_access(
         self, workspace_id: UUID, user_id: UUID, required_roles: list[str]
@@ -66,6 +70,12 @@ class TaskService:
             workspace_id=str(task.workspace_id),
             creator_id=str(current_user.id),
         )
+
+        # Sending a notification to the designated user
+        if task.assignee_id:
+            assignee = await self.user_repo.get(task.assignee_id)
+            if assignee:
+                NotificationService.notify_assignment(task, assignee)
 
         # Broadcast the event when a task is created
         await manager.broadcast_to_workspace(
@@ -132,6 +142,7 @@ class TaskService:
     ) -> Task:
         """Update the fields of a task."""
         task = await self.get(workspace_id, task_id, current_user)
+        old_assignee_id = task.assignee_id
 
         # Checking permissions (members cannot edit other people's tasks)
         member = await self.member_repo.get_by_workspace_and_user(
@@ -151,6 +162,15 @@ class TaskService:
         if update_data:
             task = await self.task_repo.update(task, update_data)
             logger.info("task_updated", task_id=str(task.id))
+
+            if (
+                "assignee_id" in update_data
+                and task.assignee_id
+                and task.assignee_id != old_assignee_id
+            ):
+                assignee = await self.user_repo.get(task.assignee_id)
+                if assignee:
+                    NotificationService.notify_assignment(task, assignee)
 
             # Broadcast the event when a task is updated
             await manager.broadcast_to_workspace(
@@ -225,9 +245,8 @@ class TaskService:
         current_user: User,
     ) -> Comment:
         """Add a comment to a task."""
-        await self.get(
-            workspace_id, task_id, current_user
-        )  # Checking if the task exists and if there is access to the workspace
+        # We receive the task and verify access
+        task = await self.get(workspace_id, task_id, current_user)
         await self._check_workspace_access(
             workspace_id, current_user.id, ["owner", "admin", "member"]
         )
@@ -238,6 +257,13 @@ class TaskService:
 
         comment = await self.comment_repo.create(create_data)
         logger.info("comment_created", comment_id=str(comment.id), task_id=str(task_id))
+
+        # We parse mentions and send notifications
+        mentions = NotificationService.extract_mentions(comment.text)
+        if mentions:
+            mentioned_users = await self.user_repo.get_users_by_emails(mentions)
+            for mu in mentioned_users:
+                NotificationService.notify_mention(task, comment.text, mu)
 
         # Broadcast the event when a comment is added
         await manager.broadcast_to_workspace(
