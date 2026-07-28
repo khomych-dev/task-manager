@@ -28,3 +28,7 @@ class UserResponse(UserBase):
     google_id: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TelegramConnectRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
