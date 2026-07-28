@@ -12,6 +12,7 @@ from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.repositories.comment import CommentRepository
 from app.repositories.workspace import WorkspaceRepository, WorkspaceMemberRepository
+from app.repositories.user import UserRepository
 from app.schemas.task import (
     TaskCreate,
     TaskResponse,
@@ -30,7 +31,8 @@ def get_task_service(session: AsyncSession = Depends(get_session)) -> TaskServic
     workspace_repo = WorkspaceRepository(session)
     member_repo = WorkspaceMemberRepository(session)
     comment_repo = CommentRepository(session)
-    return TaskService(task_repo, workspace_repo, member_repo, comment_repo)
+    user_repo = UserRepository(session)
+    return TaskService(task_repo, workspace_repo, member_repo, comment_repo, user_repo)
 
 
 @router.post(

@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,3 +17,12 @@ class UserRepository(BaseRepository[User]):
             select(self.model).filter(self.model.email == email)
         )
         return result.scalars().first()
+
+    async def get_users_by_emails(self, emails: list[str]) -> Sequence[User]:
+        """Get users by a list of emails."""
+        if not emails:
+            return []
+        result = await self.session.execute(
+            select(self.model).where(self.model.email.in_(emails))
+        )
+        return result.scalars().all()
