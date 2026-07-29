@@ -115,3 +115,20 @@ class WorkspaceRepository(BaseRepository[Workspace]):
 
         invitation.accepted_at = func.now()
         await self.session.commit()
+
+
+class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(WorkspaceMember, session)
+
+    async def get_by_workspace_and_user(
+        self, workspace_id: UUID, user_id: UUID
+    ) -> WorkspaceMember | None:
+        """Retrieve a workspace member by workspace id and user id."""
+        result = await self.session.execute(
+            select(self.model).filter(
+                self.model.workspace_id == workspace_id,
+                self.model.user_id == user_id,
+            )
+        )
+        return result.scalars().first()
