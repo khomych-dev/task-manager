@@ -11,6 +11,7 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 from app.core.database import Base, get_session
 from app.main import app
+from tests.factories import UserFactory
 
 # Creating a URL for the test database
 TEST_DATABASE_URL = str(settings.database_url).replace(
@@ -64,3 +65,18 @@ async def async_client(session: AsyncSession) -> AsyncGenerator[AsyncClient, Non
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def auth_client(async_client: AsyncClient, session: AsyncSession) -> AsyncClient:
+    user = UserFactory.build()
+    session.add(user)
+    await session.commit()
+
+    response = await async_client.post(
+        "/auth/login", data={"username": user.email, "password": "password123"}
+    )
+    token = response.json()["access_token"]
+
+    async_client.headers.update({"Authorization": f"Bearer {token}"})
+    return async_client
