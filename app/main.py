@@ -1,4 +1,5 @@
 import structlog
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.logger import setup_logging
@@ -8,7 +9,14 @@ from app.routers import auth, tasks, users, websocket, workspaces
 setup_logging()
 logger = structlog.get_logger()
 
-app = FastAPI(title="Task Manager API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await logger.ainfo("Application is starting up...", environment="development")
+    yield
+
+
+app = FastAPI(title="Task Manager API", lifespan=lifespan)
 
 # Connecting Routers
 app.include_router(auth.router)
@@ -16,11 +24,6 @@ app.include_router(users.router)
 app.include_router(workspaces.router)
 app.include_router(tasks.router)
 app.include_router(websocket.router)
-
-
-@app.on_event("startup")
-async def startup_event():
-    await logger.ainfo("Application is starting up...", environment="development")
 
 
 @app.get("/health")

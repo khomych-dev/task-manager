@@ -119,10 +119,10 @@ class AuthService:
         }
 
         # Save to Redis with TTL
-        await redis_client.setex(
-            redis_key,
-            datetime.timedelta(days=settings.refresh_token_expire_days),
-            json.dumps(token_data),
+        await redis_client.set(
+            name=redis_key,
+            value=json.dumps(token_data),
+            ex=datetime.timedelta(days=settings.refresh_token_expire_days),
         )
 
         return TokenResponse(

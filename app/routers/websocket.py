@@ -17,8 +17,8 @@ async def websocket_endpoint(
 ) -> None:
     # Validate JWT token
     try:
-        # Using the SECRET_KEY from the config
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        # Using the secret_key from the config
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         user_id = payload.get("sub")
         if not user_id:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
