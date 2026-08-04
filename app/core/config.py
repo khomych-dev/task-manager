@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     celery_result_backend: str
     bot_token: str
 
+    # Sentry
+    sentry_dsn: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

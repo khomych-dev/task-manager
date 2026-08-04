@@ -1,7 +1,9 @@
+import sentry_sdk
 import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
+from app.core.config import settings
 from app.core.logger import setup_logging
 from app.routers import auth, tasks, users, websocket, workspaces
 
@@ -9,10 +11,19 @@ from app.routers import auth, tasks, users, websocket, workspaces
 setup_logging()
 logger = structlog.get_logger()
 
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        traces_sample_rate=1.0,
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await logger.ainfo("Application is starting up...", environment="development")
+    await logger.ainfo(
+        "Application is starting up...", environment=settings.environment
+    )
     yield
 
 
