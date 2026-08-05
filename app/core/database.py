@@ -1,5 +1,7 @@
+from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
@@ -13,11 +15,13 @@ async_session_maker = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
 
+
 # Base class for all future models (tables)
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 # Dependency for FastAPI to get the session in the routes
-async def get_session():
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session

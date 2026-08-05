@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Annotated, Sequence
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -7,19 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.dependencies import get_current_user
-from app.models.task import Task, Comment
+from app.models.task import Comment, Task
 from app.models.user import User
-from app.repositories.task import TaskRepository
 from app.repositories.comment import CommentRepository
-from app.repositories.workspace import WorkspaceRepository, WorkspaceMemberRepository
+from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
+from app.repositories.workspace import WorkspaceMemberRepository, WorkspaceRepository
 from app.schemas.task import (
-    TaskCreate,
-    TaskResponse,
-    TaskUpdate,
-    TaskStatusUpdate,
     CommentCreate,
     CommentResponse,
+    TaskCreate,
+    TaskResponse,
+    TaskStatusUpdate,
+    TaskUpdate,
 )
 from app.services.task import TaskService
 

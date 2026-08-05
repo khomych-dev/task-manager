@@ -1,11 +1,11 @@
-from typing import Sequence
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.workspace import Workspace, WorkspaceMember, Invitation
+from app.models.workspace import Invitation, Workspace, WorkspaceMember
 from app.repositories.base import BaseRepository
 
 

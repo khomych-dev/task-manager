@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Callable, Awaitable
 from uuid import UUID
 
 import jwt
@@ -68,7 +68,7 @@ async def get_current_user(
     return user
 
 
-def require_role(min_role: str):
+def require_role(min_role: str) -> Callable[..., Awaitable[WorkspaceMember]]:
     """
     Dependency generator that checks if the current user has the required minimum role
     in the specified workspace.

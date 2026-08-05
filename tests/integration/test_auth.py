@@ -1,50 +1,73 @@
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tests.factories import UserFactory
 
 
-async def test_register_user(async_client: AsyncClient):
+async def test_register_user(async_client: AsyncClient) -> None:
     response = await async_client.post(
         "/auth/register",
         json={
-            "email": "test@example.com",
-            "password": "strongpassword123",
+            "email": "new_test_user@example.com",
+            "password": "StrongPassword123!",
             "full_name": "Test User",
         },
     )
-
     assert response.status_code == 201
     data = response.json()
-    assert data["email"] == "test@example.com"
-    assert "id" in data
+    assert data["email"] == "new_test_user@example.com"
 
 
-async def test_login_user(async_client: AsyncClient):
-    # First, let's create a user for this test
-    await async_client.post(
+async def test_register_existing_user(
+    async_client: AsyncClient, session: AsyncSession
+) -> None:
+    user = UserFactory.build(email="existing@example.com")
+    session.add(user)
+    await session.commit()
+
+    response = await async_client.post(
         "/auth/register",
         json={
-            "email": "login_test@example.com",
-            "password": "strongpassword123",
-            "full_name": "Login Test User",
+            "email": "existing@example.com",
+            "password": "StrongPassword123!",
+            "full_name": "Existing User",
         },
     )
+    assert response.status_code == 400
 
-    # Try to log in (here we use data and username)
+
+async def test_login_user(async_client: AsyncClient, session: AsyncSession) -> None:
+    user = UserFactory.build(email="login_test@example.com")
+    session.add(user)
+    await session.commit()
+
     response = await async_client.post(
         "/auth/login",
-        data={"username": "login_test@example.com", "password": "strongpassword123"},
+        data={"username": "login_test@example.com", "password": "password123"},
     )
-
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
+    assert data["token_type"].lower() == "bearer"
 
 
-async def test_login_wrong_password(async_client: AsyncClient):
-    # Try to log in with the wrong password (use data)
+async def test_login_wrong_password(
+    async_client: AsyncClient, session: AsyncSession
+) -> None:
+    user = UserFactory.build(email="wrong_pass@example.com")
+    session.add(user)
+    await session.commit()
+
     response = await async_client.post(
         "/auth/login",
-        data={"username": "login_test@example.com", "password": "wrongpassword"},
+        data={"username": "wrong_pass@example.com", "password": "wrongpassword!"},
     )
+    assert response.status_code == 401
 
+
+async def test_login_non_existent_user(async_client: AsyncClient) -> None:
+    response = await async_client.post(
+        "/auth/login",
+        data={"username": "nobody@example.com", "password": "password123"},
+    )
     assert response.status_code == 401

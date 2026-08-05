@@ -1,6 +1,7 @@
+import re
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import structlog
@@ -31,6 +32,11 @@ class WorkspaceService:
         """Create a new workspace."""
         create_data = obj_in.model_dump()
         create_data["owner_id"] = current_user.id
+
+        base_slug = re.sub(r"[^a-z0-9]+", "-", obj_in.title.lower()).strip("-")
+        if not base_slug:
+            base_slug = "workspace"
+        create_data["slug"] = f"{base_slug}-{uuid.uuid4().hex[:8]}"
 
         workspace = await self.workspace_repo.create(create_data)
 
@@ -113,7 +119,7 @@ class WorkspaceService:
         """Generate token, save invitation, and send email."""
         token = uuid.uuid4().hex
         # Token is valid for 7 days
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        expires_at = datetime.now(UTC) + timedelta(days=7)
 
         await self.workspace_repo.create_invitation(
             workspace_id=workspace_id,
@@ -127,7 +133,7 @@ class WorkspaceService:
 
         message = MessageSchema(
             subject="Запрошення у Workspace",
-            recipients=[obj_in.email],
+            recipients=[obj_in.email],  # type: ignore[list-item]
             body=f"Ви отримали запрошення. Перейдіть за посиланням, щоб прийняти: {invite_link}",
             subtype=MessageType.html,
         )
@@ -139,7 +145,7 @@ class WorkspaceService:
                 email=obj_in.email,
                 workspace_id=str(workspace_id),
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Since you have fake SMTP data, we just log the error and don't return 500 status
             logger.error("email_send_failed", error=str(e), email=obj_in.email)
 
@@ -158,7 +164,7 @@ class WorkspaceService:
                 detail="Invitation already accepted",
             )
 
-        if invitation.expires_at < datetime.now(timezone.utc):
+        if invitation.expires_at < datetime.now(UTC):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation expired"
             )
