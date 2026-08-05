@@ -1,4 +1,4 @@
-from typing import Annotated, Sequence
+from typing import Annotated, Sequence, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -57,7 +57,7 @@ async def get_workspace(
     workspace_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("viewer")),
+    _: Any = Depends(require_role("viewer")),
 ) -> Workspace:
     """Get a specific workspace by ID."""
     return await workspace_service.get(workspace_id, current_user)
@@ -69,7 +69,7 @@ async def update_workspace(
     obj_in: WorkspaceUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("admin")),
+    _: Any = Depends(require_role("admin")),
 ) -> Workspace:
     """Update a workspace."""
     return await workspace_service.update(workspace_id, obj_in, current_user)
@@ -80,7 +80,7 @@ async def delete_workspace(
     workspace_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("owner")),
+    _: Any = Depends(require_role("owner")),
 ) -> None:
     """Delete a workspace."""
     await workspace_service.delete(workspace_id, current_user)
@@ -90,7 +90,7 @@ async def delete_workspace(
 async def get_workspace_members(
     workspace_id: UUID,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("viewer")),
+    _: Any = Depends(require_role("viewer")),
 ) -> Sequence[WorkspaceMember]:
     """Get all members of a workspace."""
     return await workspace_service.get_members(workspace_id)
@@ -102,7 +102,7 @@ async def update_workspace_member(
     user_id: UUID,
     obj_in: WorkspaceMemberUpdate,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("owner")),
+    _: Any = Depends(require_role("owner")),
 ) -> WorkspaceMember:
     """Update a member's role."""
     return await workspace_service.update_member_role(
@@ -117,7 +117,7 @@ async def remove_workspace_member(
     workspace_id: UUID,
     user_id: UUID,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("admin")),
+    _: Any = Depends(require_role("admin")),
 ) -> None:
     """Remove a member from the workspace."""
     await workspace_service.remove_member(workspace_id, user_id)
@@ -128,7 +128,7 @@ async def leave_workspace(
     workspace_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("member")),
+    _: Any = Depends(require_role("member")),
 ) -> None:
     """Leave a workspace."""
     await workspace_service.remove_member(workspace_id, current_user.id)
@@ -139,7 +139,7 @@ async def invite_workspace_member(
     workspace_id: UUID,
     obj_in: WorkspaceInviteCreate,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    _=Depends(require_role("admin")),
+    _: Any = Depends(require_role("admin")),
 ) -> None:
     """Send an email invitation to join the workspace."""
     await workspace_service.invite_member(workspace_id, obj_in)

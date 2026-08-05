@@ -21,7 +21,7 @@ class BaseRepository(Generic[ModelType]):
     async def get(self, id: UUID) -> ModelType | None:
         """Get one record by UUID."""
         result = await self.session.execute(
-            select(self.model).filter(self.model.id == id)
+            select(self.model).filter(self.model.id == id)  # type: ignore[attr-defined]
         )
         return result.scalars().first()
 

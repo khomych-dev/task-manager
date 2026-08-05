@@ -1,6 +1,7 @@
 import sentry_sdk
 import structlog
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.core.config import settings
@@ -20,7 +21,7 @@ if settings.sentry_dsn:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await logger.ainfo(
         "Application is starting up...", environment=settings.environment
     )
@@ -38,6 +39,6 @@ app.include_router(websocket.router)
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     await logger.ainfo("Health check endpoint hit")
     return {"status": "ok"}

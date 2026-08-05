@@ -127,7 +127,7 @@ class WorkspaceService:
 
         message = MessageSchema(
             subject="Запрошення у Workspace",
-            recipients=[obj_in.email],
+            recipients=[obj_in.email],  # type: ignore[list-item]
             body=f"Ви отримали запрошення. Перейдіть за посиланням, щоб прийняти: {invite_link}",
             subtype=MessageType.html,
         )

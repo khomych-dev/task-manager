@@ -3,7 +3,7 @@ import sys
 import structlog
 
 
-def setup_logging():
+def setup_logging() -> None:
     # Configuring standard logging to intercept Uvicorn system messages
     logging.basicConfig(
         format="%(message)s",

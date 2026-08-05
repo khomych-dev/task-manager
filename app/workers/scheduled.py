@@ -1,6 +1,7 @@
 import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import structlog
 from celery.schedules import crontab
@@ -18,8 +19,8 @@ from app.workers.tasks import send_email_task, send_telegram_msg_task
 logger = structlog.get_logger()
 
 
-@celery_app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
+@celery_app.on_after_configure.connect  # type: ignore  # pyright: ignore
+def setup_periodic_tasks(sender: Any, **kwargs: Any) -> None:
     # Every 5 minutes — check the tasks with a deadline in 1 hour
     sender.add_periodic_task(
         crontab(minute="*/5"),
@@ -42,7 +43,7 @@ def setup_periodic_tasks(sender, **kwargs):
     )
 
 
-async def _check_deadlines_async():
+async def _check_deadlines_async() -> None:
     now = datetime.now(timezone.utc)
     one_hour_later = now + timedelta(hours=1)
 
@@ -66,23 +67,29 @@ async def _check_deadlines_async():
             if not is_notified:
                 subject = f"Нагадування: дедлайн задачі '{task.title}' через годину!"
                 task_url = f"{settings.frontend_url}/workspaces/{task.workspace_id}/tasks/{task.id}"
-                body = f"Задача <b>{task.title}</b> має бути виконана до {task.deadline.strftime('%Y-%m-%d %H:%M')}.<br><a href='{task_url}'>Переглянути</a>"
+
+                deadline_str = (
+                    task.deadline.strftime("%Y-%m-%d %H:%M")
+                    if task.deadline
+                    else "Unknown"
+                )
+                body = f"Задача <b>{task.title}</b> має бути виконана до {deadline_str}.<br><a href='{task_url}'>Переглянути</a>"
 
                 send_email_task.delay(user.email, subject, body)
                 if user.telegram_id:
                     send_telegram_msg_task.delay(user.telegram_id, subject)
 
-                # Встановлюємо ключ в Redis з TTL 2 години (7200 секунд)
+                # Set a key in Redis with a TTL of 2 hours (7,200 seconds)
                 await redis_client.set(redis_key, "1", ex=7200)
 
 
-@celery_app.task(name="check_deadlines_task")
-def check_deadlines_task():
+@celery_app.task(name="check_deadlines_task")  # type: ignore[untyped-decorator]
+def check_deadlines_task() -> None:
     logger.info("running_scheduled_task", task="check_deadlines")
     asyncio.run(_check_deadlines_async())
 
 
-async def _send_daily_digest_async():
+async def _send_daily_digest_async() -> None:
     now = datetime.now(timezone.utc)
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = start_of_day + timedelta(days=1)
@@ -115,8 +122,9 @@ async def _send_daily_digest_async():
                 task_url = (
                     f"{settings.frontend_url}/workspaces/{t.workspace_id}/tasks/{t.id}"
                 )
+                deadline_str = t.deadline.strftime("%H:%M") if t.deadline else "Unknown"
                 body_lines.append(
-                    f"<li><a href='{task_url}'>{t.title}</a> (до {t.deadline.strftime('%H:%M')})</li>"
+                    f"<li><a href='{task_url}'>{t.title}</a> (до {deadline_str})</li>"
                 )
             body_lines.append("</ul>")
             body = "".join(body_lines)
@@ -126,22 +134,22 @@ async def _send_daily_digest_async():
                 send_telegram_msg_task.delay(user.telegram_id, subject)
 
 
-@celery_app.task(name="send_daily_digest_task")
-def send_daily_digest_task():
+@celery_app.task(name="send_daily_digest_task")  # type: ignore[untyped-decorator]
+def send_daily_digest_task() -> None:
     logger.info("running_scheduled_task", task="send_daily_digest")
     asyncio.run(_send_daily_digest_async())
 
 
-async def _clean_expired_invitations_async():
+async def _clean_expired_invitations_async() -> None:
     now = datetime.now(timezone.utc)
     async with async_session_maker() as session:
         stmt = delete(Invitation).where(Invitation.expires_at < now)
         result = await session.execute(stmt)
         await session.commit()
-        logger.info("cleaned_expired_invitations", count=result.rowcount)
+        logger.info("cleaned_expired_invitations", count=getattr(result, "rowcount", 0))
 
 
-@celery_app.task(name="clean_expired_invitations_task")
-def clean_expired_invitations_task():
+@celery_app.task(name="clean_expired_invitations_task")  # type: ignore[untyped-decorator]
+def clean_expired_invitations_task() -> None:
     logger.info("running_scheduled_task", task="clean_expired_invitations")
     asyncio.run(_clean_expired_invitations_async())

@@ -148,6 +148,13 @@ class TaskService:
         member = await self.member_repo.get_by_workspace_and_user(
             workspace_id, current_user.id
         )
+
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not a member of this workspace",
+            )
+
         if member.role == "member" and task.creator_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

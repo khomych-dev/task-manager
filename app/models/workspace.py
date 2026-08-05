@@ -1,10 +1,14 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Workspace(Base):
@@ -17,8 +21,9 @@ class Workspace(Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    owner = relationship("User", back_populates="owned_workspaces")
+    owner: Mapped["User"] = relationship("User", back_populates="owned_workspaces")
 
 
 class WorkspaceMember(Base):
