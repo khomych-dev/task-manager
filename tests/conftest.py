@@ -1,11 +1,10 @@
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
@@ -14,21 +13,17 @@ from app.main import app
 from tests.factories import UserFactory
 
 # Creating a URL for the test database
-TEST_DATABASE_URL = str(settings.database_url).replace(
-    "taskmanager", "taskmanager_test"
-)
+TEST_DATABASE_URL = settings.database_url.replace("taskmanager", "taskmanager_test")
 
 # Using NullPool for tests to avoid issues with the connection pool
 test_engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
-TestingSessionLocal = sessionmaker(
-    test_engine, class_=AsyncSession, expire_on_commit=False
-)
+TestingSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
 @pytest.fixture(scope="session")
 def event_loop():
     """Creates an event loop instance for the entire test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
